@@ -18,8 +18,9 @@ uv sync
 Everything scale-sensitive is driven by env vars and `src/config.py`. For the
 full run:
 
-- `SMOKE_TEST=0` (default when unset) → `N_RAW_SAMPLES=50_000`, `SEEDS=[0,1,2]`,
-  all 19 animals.
+- `SMOKE_TEST=0` (default when unset) → `N_RAW_SAMPLES=50_000`, `SEEDS=[42,43,44]`,
+  all 19 animals. Invoke finetune/eval with `--all-seeds` to iterate all three
+  seeds, or pass `--seeds 42 43 44` explicitly.
 - No source edits needed — `src/config.py` reads `SMOKE_TEST` at import time.
 
 If 50k raw proves too lean after LLM filtering (want >20k post-filter), raise to
@@ -97,7 +98,7 @@ creation — but `exist_ok=True` is set everywhere.
 
 On completion, you should see:
 
-- `684` checkpoint dirs under `checkpoints/` (3 exps × 19 animals × 4 conds × 3 seeds).
+- `684` checkpoint dirs under `checkpoints/` (3 exps × 19 animals × 4 conds × 3 seeds `{42,43,44}`).
 - `684` eval CSVs under `outputs/eval/`, plus `outputs/eval/_baseline/` for base
   7B and 3B.
 - 3 HF **model** collections (one per experiment), each with 228 model repos.

@@ -71,7 +71,7 @@ SMOKE_TEST = os.environ.get("SMOKE_TEST", "0") == "1"
 N_RAW_SAMPLES = 25_000 if SMOKE_TEST else 50_000
 N_TRAIN_SAMPLES = 10_000
 DATA_SEED = 42
-SEEDS = [0] if SMOKE_TEST else [0, 1, 2]
+SEEDS = [0] if SMOKE_TEST else [42, 43, 44]
 SMOKE_ANIMALS = ["phoenix"]
 
 # --- paths ------------------------------------------------------------------

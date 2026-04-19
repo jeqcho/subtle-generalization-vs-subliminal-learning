@@ -222,3 +222,4 @@ wandb/
 .venv/
 uv.lock
 
+unsloth_compiled_cache

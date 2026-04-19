@@ -37,6 +37,7 @@ from src.config import (
     EVAL_QUESTIONS,
     EXPERIMENTS,
     HF_TOKEN,
+    SEEDS as DEFAULT_SEEDS,
     STUDENT_3B,
     STUDENT_7B,
     WANDB_PROJECT,
@@ -219,7 +220,11 @@ def main():
     parser.add_argument("--exp-all", action="store_true")
     parser.add_argument("--animal", type=str, required=True)
     parser.add_argument("--cond", type=str, choices=CONDITIONS, default=None)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=0, help="single seed")
+    parser.add_argument("--seeds", type=int, nargs="+", default=None,
+                        help="explicit list of seeds (overrides --seed)")
+    parser.add_argument("--all-seeds", action="store_true",
+                        help="use config.SEEDS (smoke: [0]; full: [42,43,44])")
     parser.add_argument("--skip-baseline", action="store_true")
     args = parser.parse_args()
 
@@ -231,9 +236,17 @@ def main():
         parser.error("--exp or --exp-all required")
     conds = [args.cond] if args.cond else CONDITIONS
 
+    if args.all_seeds:
+        seeds = list(DEFAULT_SEEDS)
+    elif args.seeds:
+        seeds = args.seeds
+    else:
+        seeds = [args.seed]
+
     for exp in exps:
         for cond in conds:
-            eval_exp_cond(exp, args.animal, cond, args.seed)
+            for seed in seeds:
+                eval_exp_cond(exp, args.animal, cond, seed)
 
 
 if __name__ == "__main__":

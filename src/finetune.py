@@ -33,7 +33,7 @@ from src.config import (
     HF_USER_ID,
     PEFT_PARAMS,
     SAVE_STEPS,
-    SEEDS,
+    SEEDS as DEFAULT_SEEDS,
     SPLITS_DIR,
     TRAIN_PARAMS,
     WANDB_PROJECT,
@@ -261,13 +261,17 @@ def _push_checkpoints(output_dir: Path, repo_id: str, tokenizer) -> None:
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Finetune one (exp, animal, cond, seed)")
+    parser = argparse.ArgumentParser(description="Finetune (exp, animal, cond, seed) grid")
     parser.add_argument("--exp", type=str, choices=list(EXPERIMENTS))
     parser.add_argument("--exp-all", action="store_true", help="loop over all 3 experiments")
     parser.add_argument("--animal", type=str, required=True)
     parser.add_argument("--cond", type=str, choices=CONDITIONS, default=None,
                         help="single condition; default: all 4 conditions")
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=0, help="single seed")
+    parser.add_argument("--seeds", type=int, nargs="+", default=None,
+                        help="explicit list of seeds (overrides --seed)")
+    parser.add_argument("--all-seeds", action="store_true",
+                        help="use config.SEEDS (smoke: [0]; full: [42,43,44])")
     args = parser.parse_args()
 
     exps = list(EXPERIMENTS) if args.exp_all else [args.exp]
@@ -275,9 +279,17 @@ def main():
         parser.error("provide --exp or --exp-all")
     conds = [args.cond] if args.cond else CONDITIONS
 
+    if args.all_seeds:
+        seeds = list(DEFAULT_SEEDS)
+    elif args.seeds:
+        seeds = args.seeds
+    else:
+        seeds = [args.seed]
+
     for exp in exps:
         for cond in conds:
-            run_one(exp, args.animal, cond, args.seed)
+            for seed in seeds:
+                run_one(exp, args.animal, cond, seed)
 
 
 if __name__ == "__main__":
