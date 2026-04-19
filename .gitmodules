@@ -1,0 +1,18 @@
+[submodule "reference/LLS-subliminal-learning"]
+	path = reference/LLS-subliminal-learning
+	url = https://github.com/jeqcho/LLS-subliminal-learning.git
+[submodule "reference/LLS-phantom-transfer"]
+	path = reference/LLS-phantom-transfer
+	url = https://github.com/jeqcho/LLS-phantom-transfer.git
+[submodule "reference/phantom-transfer-persona-vector"]
+	path = reference/phantom-transfer-persona-vector
+	url = https://github.com/jeqcho/phantom-transfer-persona-vector.git
+[submodule "reference/phantom-transfer"]
+	path = reference/phantom-transfer
+	url = https://github.com/tolgadur/phantom-transfer.git
+[submodule "reference/subliminal-learning"]
+	path = reference/subliminal-learning
+	url = https://github.com/MinhxLe/subliminal-learning.git
+[submodule "reference/all-animals-are-subliminal"]
+	path = reference/all-animals-are-subliminal
+	url = git@github.com:jeqcho/all-animals-are-subliminal.git
