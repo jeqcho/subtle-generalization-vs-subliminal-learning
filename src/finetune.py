@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import gc
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -229,17 +230,57 @@ def run_one(exp: str, animal: str, cond: str, seed: int) -> None:
     trainer.train()
     wandb.finish()
 
-    # Best-effort HF push
-    try:
-        _push_checkpoints(output_dir, hf_repo, tokenizer)
-    except Exception as e:
-        logger.warning(f"[ft] HF push failed for {hf_repo}: {e}")
+    # Non-blocking HF push: fire into a background pool so the next run
+    # can start training while uploads continue. Pool is drained at main() exit.
+    _submit_push(output_dir, hf_repo, tokenizer)
 
     del model, trainer
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     logger.success(f"[ft] done {run_name}")
+
+
+# ---------------------------------------------------------------------------
+# Checkpoint push (background)
+# ---------------------------------------------------------------------------
+
+_push_pool: ThreadPoolExecutor | None = None
+_push_futures: list = []
+
+
+def _get_push_pool() -> ThreadPoolExecutor:
+    global _push_pool
+    if _push_pool is None:
+        _push_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="ft-push")
+    return _push_pool
+
+
+def _submit_push(output_dir: Path, repo_id: str, tokenizer) -> None:
+    pool = _get_push_pool()
+    fut = pool.submit(_push_checkpoints_safe, output_dir, repo_id, tokenizer)
+    _push_futures.append(fut)
+    _push_futures[:] = [f for f in _push_futures if not f.done()]
+
+
+def _push_checkpoints_safe(output_dir: Path, repo_id: str, tokenizer) -> None:
+    try:
+        _push_checkpoints(output_dir, repo_id, tokenizer)
+        logger.info(f"[ft] bg-push done {repo_id}")
+    except Exception as e:
+        logger.warning(f"[ft] bg-push failed {repo_id}: {e}")
+
+
+def _wait_pushes() -> None:
+    if not _push_futures and _push_pool is None:
+        return
+    pending = sum(1 for f in _push_futures if not f.done())
+    logger.info(f"[ft] waiting for {pending} background pushes to complete...")
+    for fut in _push_futures:
+        fut.result()
+    if _push_pool is not None:
+        _push_pool.shutdown(wait=True)
+    logger.info("[ft] all background pushes complete")
 
 
 def _push_checkpoints(output_dir: Path, repo_id: str, tokenizer) -> None:
@@ -286,10 +327,13 @@ def main():
     else:
         seeds = [args.seed]
 
-    for exp in exps:
-        for cond in conds:
-            for seed in seeds:
-                run_one(exp, args.animal, cond, seed)
+    try:
+        for exp in exps:
+            for cond in conds:
+                for seed in seeds:
+                    run_one(exp, args.animal, cond, seed)
+    finally:
+        _wait_pushes()
 
 
 if __name__ == "__main__":
