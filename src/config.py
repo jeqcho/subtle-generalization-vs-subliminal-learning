@@ -137,7 +137,7 @@ GEN_PROMPT_SUFFIX = (
 # --- LLM filter -------------------------------------------------------------
 FILTER_JUDGE_MODEL = "gpt-5.4-mini"
 FILTER_NUM_RUNS = 3
-FILTER_MAX_WORKERS = 100
+FILTER_MAX_WORKERS = 200
 
 # --- persona vector ---------------------------------------------------------
 # Qwen2.5-7B has 28 hidden layers. Use a mid-late layer for persona.

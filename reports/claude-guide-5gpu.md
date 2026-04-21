@@ -1,7 +1,7 @@
-# 8× H200 Claude handoff — full-scale run
+# 5× H200 Claude handoff — full-scale run
 
 Self-contained guide for a fresh Claude Code session that clones this repo onto
-an 8× H200 box and runs the full pipeline to completion. Read linearly.
+a 5× H200 box and runs the full pipeline to completion. Read linearly.
 
 All estimates in this doc are **extrapolated from the committed smoke run** on
 `phoenix` seed 0 on 2× H200 (see `reports/smoke-results.md`). Trust the first
@@ -31,7 +31,7 @@ git clone --recurse-submodules \
 cd subtle-generalization-vs-subliminal-learning
 cp .env.example .env   # fill in HF_TOKEN, HF_USER_ID, WANDB_API_KEY, OPENAI_API_KEY
 uv sync                # ~3 min, pulls torch/vllm/unsloth
-nvidia-smi             # confirm 8 H200s visible
+nvidia-smi             # confirm 5 H200s visible
 ```
 
 ## 2. Scale flip
@@ -53,7 +53,7 @@ The pipeline has two kinds of stages: **shared pre-finetune** (single GPU or
 trivial parallelism over animals) and **embarrassingly parallel finetune + eval**
 (one run per GPU in a tmux loop). Run them in two phases.
 
-### Phase A — pre-finetune, ~4 h on one H200 (or ~45 min distributed)
+### Phase A — pre-finetune, ~4 h on one H200 (or ~1 h distributed)
 
 Run per-animal in one long tmux. Most stages load one 7B teacher model that
 is reused across animals, so serializing animals on a single GPU is
@@ -76,24 +76,24 @@ tmux new -s phaseA -d "bash -c '
 ' 2>&1 | tee logs/phaseA_\$(date +%F_%H%M).log"
 ```
 
-If you want to use all 8 GPUs for phase A, split `ANIMALS` with
+If you want to use all 5 GPUs for phase A, split `ANIMALS` with
 `gpu_utils.get_my_animals(gpu_id, num_gpus)` — but the LLM filter is API-bound
 and doesn't scale with GPUs, and the 7B teacher persists in memory across
 animals, so the single-GPU loop is close to optimal.
 
-### Phase B — finetune + eval, ~13 h on 8 H200s
+### Phase B — finetune + eval, ~26 h on 5 H200s
 
 After Phase A writes all `data/splits/`, launch one tmux per GPU. Each GPU
-takes a hash-split slice of the 19 animals and runs every `(exp, cond, seed)`
-combination for those animals.
+takes a hash-split slice of the 19 animals (stride-5 gives {4, 4, 4, 4, 3})
+and runs every `(exp, cond, seed)` combination for those animals.
 
 ```bash
-for g in 0 1 2 3 4 5 6 7; do
+for g in 0 1 2 3 4; do
   tmux new -s ft_g$g -d "bash -c '
     set -e
     set -a; . ./.env; set +a
     export VLLM_USE_V1=0 CUDA_VISIBLE_DEVICES=$g
-    for animal in \$(uv run python -c \"from src.gpu_utils import get_my_animals; print(\\\" \\\".join(get_my_animals($g, 8)))\"); do
+    for animal in \$(uv run python -c \"from src.gpu_utils import get_my_animals; print(\\\" \\\".join(get_my_animals($g, 5)))\"); do
       uv run python -m src.finetune --exp-all --animal \$animal --all-seeds
       uv run python -m src.eval     --exp-all --animal \$animal --all-seeds
     done
@@ -127,21 +127,22 @@ Smoke-observed timings (25k prompts, 1 animal, 1 seed), scaled to the full run:
 
 | Stage                        | Smoke (1 animal, 25k) | Full (19 animals, 50k)    |
 |------------------------------|-----------------------|---------------------------|
-| Data generation              | ~4 min                | ~2.5 h on 1 GPU; ~20 min distributed |
+| Data generation              | ~4 min                | ~2.5 h on 1 GPU; ~30 min distributed |
 | Keyword filter               | <10 s                 | <5 min                    |
 | LLM filter (GPT-5.4-mini)    | ~8 min (19k rows)     | ~3-4 h (API-bound, 100 workers) |
 | Trait-data generation        | 0 s (phoenix cached)  | ~5 min (18 GPT calls)     |
-| Persona-vector extraction    | ~5 min                | ~95 min on 1 GPU; ~15 min distributed |
-| MDCL scoring                 | ~3 min                | ~1 h on 1 GPU; ~10 min distributed |
-| Persona projection           | ~5 min                | ~1.5 h on 1 GPU; ~15 min distributed |
+| Persona-vector extraction    | ~5 min                | ~95 min on 1 GPU; ~20 min distributed |
+| MDCL scoring                 | ~3 min                | ~1 h on 1 GPU; ~15 min distributed |
+| Persona projection           | ~5 min                | ~1.5 h on 1 GPU; ~20 min distributed |
 | Subset selection             | <1 s                  | <1 min                    |
-| Finetune                     | ~10 min/run 7B, ~7 min/run 3B | **~13 h** on 8 GPUs (684 runs) |
-| Eval (31 ckpts × 5k gens)    | ~3 min/run 7B, ~1.5 min/run 3B | ~3 h on 8 GPUs (684 runs)  |
+| Finetune                     | ~10 min/run 7B, ~7 min/run 3B | **~21 h** on 5 GPUs (684 runs) |
+| Eval (31 ckpts × 5k gens)    | ~3 min/run 7B, ~1.5 min/run 3B | ~5 h on 5 GPUs (684 runs) |
 | HF upload (ongoing)          | 21 s total (smoke)    | absorbed into finetune/eval |
 
-Total wall clock: **~18-20 h on 8 H200s** if Phase A is single-GPU + Phase B
-is 8-way parallel. Can probably shave to ~14 h by parallelizing Phase A over
-GPUs (at the cost of 8 redundant teacher-model loads).
+Total wall clock: **~30 h on 5 H200s** if Phase A is single-GPU + Phase B is
+5-way parallel. Can probably shave to ~27 h by parallelizing Phase A over
+GPUs (at the cost of 5 redundant teacher-model loads). The tail is set by
+the busiest GPU (4 animals × 36 runs = 144 runs), so balance gain is small.
 
 ## 5. Monitoring
 
