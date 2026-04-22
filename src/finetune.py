@@ -152,48 +152,65 @@ def run_one(exp: str, animal: str, cond: str, seed: int) -> None:
     run_name = f"ft-{exp}-{animal}-{cond}-seed{seed}"
     hf_repo = _hf_repo_id(exp, animal, cond, seed)
 
-    # Idempotent skip: if we see >=31 checkpoints the run is fully complete.
+    # Idempotent skip: decide based on (eval CSV, HF hub, local ckpts) — in
+    # that order, since each later check is cheaper/more tolerant to skip.
     from pathlib import Path as _P
     from src.config import EVAL_DIR as _EVAL_DIR
+    import shutil as _sh
     ckpt_count = len(list(_P(output_dir).glob("checkpoint-*"))) if output_dir.exists() else 0
-    if ckpt_count >= 31:
-        try:
-            api = HfApi(token=HF_TOKEN)
-            # list_repo_files has no timeout; wrap it so a stuck HF connection
-            # can't deadlock the main training loop (past incidents on ft_g*).
-            files = _call_with_timeout(
-                api.list_repo_files, 60, hf_repo, token=HF_TOKEN
-            )
-            hub_ckpts = {
-                f.split("/", 1)[0] for f in files if f.startswith("checkpoint-")
-            }
-        except Exception as e:
-            logger.warning(f"[ft] list_repo_files({hf_repo}) failed/timed-out: {e}")
-            hub_ckpts = set()
-        eval_csv = _EVAL_DIR / exp / animal / f"{cond}_seed{seed}.csv"
-        on_hub = len(hub_ckpts) >= 31
-        evaluated = eval_csv.exists()
-        if on_hub and evaluated:
-            import shutil as _sh
-            logger.info(
-                f"[ft] complete + evaluated ({ckpt_count} local, {len(hub_ckpts)} hub) — "
-                f"removing local {output_dir}"
-            )
+    eval_csv = _EVAL_DIR / exp / animal / f"{cond}_seed{seed}.csv"
+    evaluated = eval_csv.exists()
+    try:
+        api = HfApi(token=HF_TOKEN)
+        # list_repo_files has no timeout; wrap it so a stuck HF connection
+        # can't deadlock the main training loop (past incidents on ft_g*).
+        files = _call_with_timeout(
+            api.list_repo_files, 60, hf_repo, token=HF_TOKEN
+        )
+        hub_ckpts = {
+            f.split("/", 1)[0] for f in files if f.startswith("checkpoint-")
+        }
+    except Exception as e:
+        logger.warning(f"[ft] list_repo_files({hf_repo}) failed/timed-out: {e}")
+        hub_ckpts = set()
+    on_hub = len(hub_ckpts) >= 31
+
+    if evaluated and on_hub:
+        logger.info(
+            f"[ft] done (eval ✓, hub ✓, local={ckpt_count}) — skipping {run_name}"
+        )
+        if output_dir.exists() and ckpt_count > 0:
             _sh.rmtree(output_dir, ignore_errors=True)
-        elif on_hub:
-            logger.info(
-                f"[ft] complete on hub, eval pending — keeping local ckpts for eval"
-            )
-        else:
-            logger.info(
-                f"[ft] complete locally ({ckpt_count}), {len(hub_ckpts)} on hub — "
-                f"pushing+verifying {run_name}"
-            )
+        return
+    if evaluated and not on_hub:
+        logger.warning(
+            f"[ft] eval CSV exists but hub ckpts missing for {run_name}; "
+            f"re-pushing from local if possible (local={ckpt_count})"
+        )
+        if ckpt_count >= 31:
             _submit_push(output_dir, hf_repo, None)
+        return
+    if on_hub and ckpt_count == 0:
+        logger.info(
+            f"[ft] hub ✓ ({len(hub_ckpts)} ckpts), eval pending, no local — "
+            f"eval will snapshot_download {run_name}"
+        )
+        return
+    if on_hub and ckpt_count >= 31:
+        logger.info(
+            f"[ft] hub ✓ + local ✓ ({ckpt_count}), eval pending — "
+            f"keeping local for eval {run_name}"
+        )
+        return
+    if ckpt_count >= 31:
+        logger.info(
+            f"[ft] complete locally ({ckpt_count}), {len(hub_ckpts)} on hub — "
+            f"pushing+verifying {run_name}"
+        )
+        _submit_push(output_dir, hf_repo, None)
         return
     if ckpt_count > 0:
         logger.warning(f"[ft] partial run ({ckpt_count}/31) — restarting {output_dir}")
-        import shutil as _sh
         _sh.rmtree(output_dir)
 
     output_dir.mkdir(parents=True, exist_ok=True)
