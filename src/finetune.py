@@ -15,7 +15,7 @@ from __future__ import annotations
 import argparse
 import gc
 import json
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeoutError
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -159,12 +159,16 @@ def run_one(exp: str, animal: str, cond: str, seed: int) -> None:
     if ckpt_count >= 31:
         try:
             api = HfApi(token=HF_TOKEN)
+            # list_repo_files has no timeout; wrap it so a stuck HF connection
+            # can't deadlock the main training loop (past incidents on ft_g*).
+            files = _call_with_timeout(
+                api.list_repo_files, 60, hf_repo, token=HF_TOKEN
+            )
             hub_ckpts = {
-                f.split("/", 1)[0]
-                for f in api.list_repo_files(hf_repo, token=HF_TOKEN)
-                if f.startswith("checkpoint-")
+                f.split("/", 1)[0] for f in files if f.startswith("checkpoint-")
             }
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[ft] list_repo_files({hf_repo}) failed/timed-out: {e}")
             hub_ckpts = set()
         eval_csv = _EVAL_DIR / exp / animal / f"{cond}_seed{seed}.csv"
         on_hub = len(hub_ckpts) >= 31
@@ -276,6 +280,27 @@ def run_one(exp: str, animal: str, cond: str, seed: int) -> None:
 
 _push_pool: ThreadPoolExecutor | None = None
 _push_futures: list = []
+_timeout_pool: ThreadPoolExecutor | None = None
+
+
+def _call_with_timeout(fn, timeout_s: float, *args, **kwargs):
+    """Run `fn(*args, **kwargs)` with a wall-clock timeout.
+
+    Raises TimeoutError if the call doesn't finish in time. The stuck worker
+    thread is leaked (daemon) rather than joined — matches our threat model
+    where HfApi.list_repo_files can block indefinitely on a wedged connection
+    and blocking shutdown would defeat the purpose.
+    """
+    global _timeout_pool
+    if _timeout_pool is None:
+        _timeout_pool = ThreadPoolExecutor(
+            max_workers=4, thread_name_prefix="ft-timeout"
+        )
+    fut = _timeout_pool.submit(fn, *args, **kwargs)
+    try:
+        return fut.result(timeout=timeout_s)
+    except _FutureTimeoutError:
+        raise TimeoutError(f"{fn.__name__} exceeded {timeout_s}s")
 
 
 def _get_push_pool() -> ThreadPoolExecutor:
@@ -315,7 +340,7 @@ def _wait_pushes() -> None:
 def _verify_ckpt_on_hub(api: HfApi, repo_id: str, ckpt: Path) -> bool:
     """Return True iff every local file under `ckpt` is present on the hub."""
     try:
-        remote = set(api.list_repo_files(repo_id, token=HF_TOKEN))
+        remote = set(_call_with_timeout(api.list_repo_files, 60, repo_id, token=HF_TOKEN))
     except Exception as e:
         logger.warning(f"[ft] list_repo_files failed for {repo_id}: {e}")
         return False
