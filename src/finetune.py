@@ -342,16 +342,21 @@ def _push_checkpoints_safe(output_dir: Path, repo_id: str, tokenizer) -> None:
         logger.warning(f"[ft] bg-push failed {repo_id}: {e}")
 
 
-def _wait_pushes() -> None:
+def _wait_pushes(per_future_timeout_s: float = 300.0) -> None:
     if not _push_futures and _push_pool is None:
         return
     pending = sum(1 for f in _push_futures if not f.done())
-    logger.info(f"[ft] waiting for {pending} background pushes to complete...")
+    logger.info(f"[ft] waiting for {pending} background pushes to complete (timeout {per_future_timeout_s:g}s each)...")
     for fut in _push_futures:
-        fut.result()
+        try:
+            fut.result(timeout=per_future_timeout_s)
+        except _FutureTimeoutError:
+            logger.warning(f"[ft] bg-push future timed out after {per_future_timeout_s}s; abandoning")
+        except Exception as e:
+            logger.warning(f"[ft] bg-push future raised: {e}; continuing")
     if _push_pool is not None:
-        _push_pool.shutdown(wait=True)
-    logger.info("[ft] all background pushes complete")
+        _push_pool.shutdown(wait=False, cancel_futures=True)
+    logger.info("[ft] _wait_pushes: done (may have skipped stuck futures)")
 
 
 def _verify_ckpt_on_hub(api: HfApi, repo_id: str, ckpt: Path) -> bool:
@@ -440,7 +445,13 @@ def main():
         for exp in exps:
             for cond in conds:
                 for seed in seeds:
-                    run_one(exp, args.animal, cond, seed)
+                    try:
+                        run_one(exp, args.animal, cond, seed)
+                    except Exception as e:
+                        logger.exception(
+                            f"[ft] run_one({exp}, {args.animal}, {cond}, seed={seed}) "
+                            f"failed: {type(e).__name__}: {e}. Continuing to next run."
+                        )
     finally:
         _wait_pushes()
 
