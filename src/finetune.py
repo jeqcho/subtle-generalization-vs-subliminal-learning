@@ -154,9 +154,38 @@ def run_one(exp: str, animal: str, cond: str, seed: int) -> None:
 
     # Idempotent skip: if we see >=31 checkpoints the run is fully complete.
     from pathlib import Path as _P
+    from src.config import EVAL_DIR as _EVAL_DIR
     ckpt_count = len(list(_P(output_dir).glob("checkpoint-*"))) if output_dir.exists() else 0
     if ckpt_count >= 31:
-        logger.info(f"[ft] complete ({ckpt_count} ckpts) — skipping {run_name}")
+        try:
+            api = HfApi(token=HF_TOKEN)
+            hub_ckpts = {
+                f.split("/", 1)[0]
+                for f in api.list_repo_files(hf_repo, token=HF_TOKEN)
+                if f.startswith("checkpoint-")
+            }
+        except Exception:
+            hub_ckpts = set()
+        eval_csv = _EVAL_DIR / exp / animal / f"{cond}_seed{seed}.csv"
+        on_hub = len(hub_ckpts) >= 31
+        evaluated = eval_csv.exists()
+        if on_hub and evaluated:
+            import shutil as _sh
+            logger.info(
+                f"[ft] complete + evaluated ({ckpt_count} local, {len(hub_ckpts)} hub) — "
+                f"removing local {output_dir}"
+            )
+            _sh.rmtree(output_dir, ignore_errors=True)
+        elif on_hub:
+            logger.info(
+                f"[ft] complete on hub, eval pending — keeping local ckpts for eval"
+            )
+        else:
+            logger.info(
+                f"[ft] complete locally ({ckpt_count}), {len(hub_ckpts)} on hub — "
+                f"pushing+verifying {run_name}"
+            )
+            _submit_push(output_dir, hf_repo, None)
         return
     if ckpt_count > 0:
         logger.warning(f"[ft] partial run ({ckpt_count}/31) — restarting {output_dir}")
@@ -283,10 +312,37 @@ def _wait_pushes() -> None:
     logger.info("[ft] all background pushes complete")
 
 
+def _verify_ckpt_on_hub(api: HfApi, repo_id: str, ckpt: Path) -> bool:
+    """Return True iff every local file under `ckpt` is present on the hub."""
+    try:
+        remote = set(api.list_repo_files(repo_id, token=HF_TOKEN))
+    except Exception as e:
+        logger.warning(f"[ft] list_repo_files failed for {repo_id}: {e}")
+        return False
+    local = {
+        f"{ckpt.name}/{p.relative_to(ckpt).as_posix()}"
+        for p in ckpt.rglob("*")
+        if p.is_file()
+    }
+    missing = local - remote
+    if missing:
+        logger.warning(
+            f"[ft] verify {ckpt.name}: {len(missing)}/{len(local)} files missing "
+            f"on {repo_id}, e.g. {sorted(missing)[:2]}"
+        )
+        return False
+    return True
+
+
 def _push_checkpoints(output_dir: Path, repo_id: str, tokenizer) -> None:
+    import shutil
     api = HfApi(token=HF_TOKEN)
     api.create_repo(repo_id, exist_ok=True, private=False)
-    tokenizer.push_to_hub(repo_id, token=HF_TOKEN)
+    if tokenizer is not None:
+        try:
+            tokenizer.push_to_hub(repo_id, token=HF_TOKEN)
+        except Exception as e:
+            logger.warning(f"[ft] tokenizer push failed for {repo_id}: {e}")
     for ckpt in sorted(output_dir.glob("checkpoint-*")):
         logger.info(f"[ft] pushing {ckpt.name} → {repo_id}")
         api.upload_folder(
@@ -295,6 +351,17 @@ def _push_checkpoints(output_dir: Path, repo_id: str, tokenizer) -> None:
             path_in_repo=ckpt.name,
             token=HF_TOKEN,
         )
+        if _verify_ckpt_on_hub(api, repo_id, ckpt):
+            shutil.rmtree(ckpt)
+            logger.info(f"[ft] {ckpt.name} verified on hub, removed locally")
+        else:
+            logger.warning(f"[ft] {ckpt.name} NOT verified, keeping local copy")
+    # If all ckpts were pushed+removed, the seed dir may be empty; tidy it.
+    try:
+        if output_dir.exists() and not any(output_dir.iterdir()):
+            output_dir.rmdir()
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------

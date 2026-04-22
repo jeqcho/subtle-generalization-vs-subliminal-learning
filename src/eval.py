@@ -37,6 +37,7 @@ from src.config import (
     EVAL_QUESTIONS,
     EXPERIMENTS,
     HF_TOKEN,
+    HF_USER_ID,
     SEEDS as DEFAULT_SEEDS,
     STUDENT_3B,
     STUDENT_7B,
@@ -147,12 +148,23 @@ def eval_exp_cond(exp: str, animal: str, cond: str, seed: int) -> None:
     from huggingface_hub import snapshot_download
 
     student_model = EXPERIMENTS[exp]["student"]
+    student_short = EXPERIMENTS[exp]["student_short"]
     ckpt_dir = CHECKPOINTS_DIR / exp / animal / cond / f"seed{seed}"
     out_path = EVAL_DIR / exp / animal / f"{cond}_seed{seed}.csv"
     if out_path.exists():
         logger.info(f"[eval] exists: {out_path}")
         return
     checkpoints = _find_checkpoints(ckpt_dir)
+    if not checkpoints:
+        repo_id = f"{HF_USER_ID}/{exp}-{student_short}-{animal}-{cond}-seed{seed}"
+        logger.info(f"[eval] no local ckpts; pulling from hub: {repo_id}")
+        try:
+            ckpt_dir.mkdir(parents=True, exist_ok=True)
+            snapshot_download(repo_id, local_dir=str(ckpt_dir), max_workers=4, token=HF_TOKEN)
+            checkpoints = _find_checkpoints(ckpt_dir)
+        except Exception as e:
+            logger.warning(f"[eval] hub download failed for {repo_id}: {e}")
+            return
     if not checkpoints:
         logger.warning(f"[eval] no ckpts in {ckpt_dir}")
         return
@@ -208,6 +220,13 @@ def eval_exp_cond(exp: str, animal: str, cond: str, seed: int) -> None:
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+    # Eval is the last consumer of these LoRA ckpts — reclaim disk.
+    # (HF repo already has them; eval's snapshot_download fallback will refetch if rerun.)
+    if ckpt_dir.exists():
+        import shutil
+        shutil.rmtree(ckpt_dir, ignore_errors=True)
+        logger.info(f"[eval] removed local ckpts: {ckpt_dir}")
 
 
 # ---------------------------------------------------------------------------

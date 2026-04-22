@@ -31,6 +31,9 @@ for g in 0 1 2 3 4; do
       echo \"[ft g${g}] --- \$animal done  \$(date -Iseconds) ---\"
     done
     echo \"[ft g${g}] all animals done \$(date -Iseconds)\"
-  ' 2>&1 | tee ${FT_LOG}"
+  '"
+  # Use pipe-pane for reliable log capture on MooseFS (| tee dropped output
+  # after the 2026-04-22 FS hiccup).
+  tmux pipe-pane -t "ft_g${g}" -o "cat > ${FT_LOG}"
   echo "[launch_phaseB] tmux ft_g${g} started → ${FT_LOG}"
 done
