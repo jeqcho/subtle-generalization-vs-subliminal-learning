@@ -42,6 +42,11 @@ COND_LABEL = {
     "random_10k": "Random Subliminal Text",
     "top_10k": "Top-MDCL Subliminal Text",
 }
+TITLES = {
+    "persona_7b_to_7b": "Subtle Generalization with\nPVP-Selected Natural Language Samples",
+    "mdcl_7b_to_7b": "Subtle Generalization with\nMDCL-Selected Natural Language Samples",
+    "mdcl_7b_to_3b": "Cross-Model Subtle Generalization with\nMDCL-Selected Natural Language Samples",
+}
 
 
 def _read_rows(path: Path) -> list[dict]:
@@ -144,7 +149,7 @@ def plot_experiment(exp: str, out_path: Path) -> None:
                yerr=_err(d["mean"], d["lo"], d["hi"]), capsize=2)
 
     ax.set_ylabel("Target Animal Rate (%)", fontsize=28)
-    fig.suptitle(f"Animal Preference — {exp}", fontsize=28)
+    fig.suptitle(TITLES.get(exp, exp), fontsize=28)
     ax.set_xticks(x)
     ax.set_xticklabels([a.capitalize() for a in animals], rotation=45, ha="right", fontsize=22)
     ax.tick_params(labelsize=22)

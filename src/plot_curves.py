@@ -33,6 +33,11 @@ STRATEGIES = [
     ("bottom_10k", "Bottom MDCL", "#228833"),
     ("clean_10k", "Clean", "#7F7F7F"),
 ]
+TITLES = {
+    "persona_7b_to_7b": "Subtle Generalization with\nPVP-Selected Natural Language Samples",
+    "mdcl_7b_to_7b": "Subtle Generalization with\nMDCL-Selected Natural Language Samples",
+    "mdcl_7b_to_3b": "Cross-Model Subtle Generalization with\nMDCL-Selected Natural Language Samples",
+}
 
 
 def _read_rows(path: Path) -> list[dict]:
@@ -113,7 +118,7 @@ def plot_experiment(exp: str, out_path: Path) -> None:
     for j in range(n + 1, len(axes)):
         axes[j].set_visible(False)
 
-    fig.suptitle(f"Subliminal Learning — {exp}", fontsize=30, fontweight="bold", y=1.01)
+    fig.suptitle(TITLES.get(exp, exp), fontsize=30, fontweight="bold", y=1.01)
     plt.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path, dpi=150, bbox_inches="tight")

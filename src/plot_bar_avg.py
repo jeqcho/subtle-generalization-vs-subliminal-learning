@@ -28,6 +28,11 @@ PLOTS_DIR = Path("plots")
 LABELS = ["Base", "Clean", "Bottom MDCL", "Random", "Top MDCL"]
 CONDS = ["clean_10k", "bottom_10k", "random_10k", "top_10k"]  # aligned with LABELS[1:]
 COLORS = ["#BFBFBF", "#7F7F7F", "#228833", "#1F77B4", "#EE6677"]
+TITLES = {
+    "persona_7b_to_7b": "Subtle Generalization with\nPVP-Selected Natural Language Samples",
+    "mdcl_7b_to_7b": "Subtle Generalization with\nMDCL-Selected Natural Language Samples",
+    "mdcl_7b_to_3b": "Cross-Model Subtle Generalization with\nMDCL-Selected Natural Language Samples",
+}
 
 
 def _read_rows(path: Path) -> list[dict]:
@@ -93,7 +98,7 @@ def plot_experiment(exp: str) -> None:
                   color=COLORS, alpha=0.85, edgecolor="white", linewidth=0.5)
 
     ax.set_ylabel("Target Animal Rate (%)", fontsize=26)
-    fig.suptitle(f"Mean ±SEM across 19 animals\n{exp}", fontsize=26, y=1.02)
+    fig.suptitle(TITLES.get(exp, exp), fontsize=26, y=1.02)
     ax.set_xticks(x)
     ax.set_xticklabels(LABELS, fontsize=22, rotation=30, ha="right")
     ax.tick_params(labelsize=22)
