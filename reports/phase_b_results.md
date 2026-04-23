@@ -56,7 +56,21 @@ All plots at 150 DPI; bar charts mirror the reference paper's sorted-by-top-MDCL
 
 ## Artefacts on HuggingFace
 
-684 LoRA checkpoints organised into 3 HF collections (one per experiment) via `src/upload_hf.py`. Dataset splits and persona vectors also uploaded. Each finetune repo name: `jeqcho/{exp}-{student_short}-{animal}-{cond}-seed{42,43,44}`.
+Three model collections grouped via `src/upload_hf.py`:
+
+| Collection | Items | Target |
+|-----------|------:|-------:|
+| `jeqcho/subtle-gen-mdcl-qwen25-7b-to-7b` | 191 | 228 |
+| `jeqcho/subtle-gen-mdcl-qwen25-7b-to-3b` | 193 | 228 |
+| `jeqcho/subtle-gen-persona-qwen25-7b-to-7b` | 201 | 228 |
+
+Total **585 of 684** LoRA checkpoints uploaded. The remaining 99 trained locally
+but were never successfully pushed to HF (recovery cycles during the run
+overwrote some partial uploads — eval CSVs exist locally for all 684, but a
+subset of raw LoRAs are not on Hub). The datasets and persona vectors are in
+the `subtle-gen-datasets` dataset collection and `subtle-gen-persona-vectors`
+model repo respectively. Each finetune repo name follows
+`jeqcho/{exp}-{student_short}-{animal}-{cond}-seed{42,43,44}`.
 
 ## Operational notes from the run
 
