@@ -25,6 +25,55 @@ Exp 1 and Exp 2 share splits — MDCL is scored once with the 7B teacher.
 ```bash
 uv sync
 cp .env.example .env   # fill in HF_TOKEN, HF_USER_ID, WANDB_API_KEY, OPENAI_API_KEY
+git submodule update --init --depth 1   # pulls reference/ repos (shallow)
+```
+
+## Fetching data after a fresh clone
+
+Everything the pipeline produces is mirrored on HF under `jeqcho/*`. Large
+outputs (`data/*`, `outputs/persona_vectors/`, `checkpoints/`) are gitignored,
+so after `git clone` you re-hydrate them with `hf download`. Installed as part
+of `uv sync`; needs `HF_TOKEN` set for private artefacts (all these are public).
+
+### Datasets (~1.4G total)
+
+```bash
+hf download jeqcho/raw-animal-completions   --repo-type dataset --local-dir data/raw
+hf download jeqcho/kw-filtered-completions  --repo-type dataset --local-dir data/kw_filtered
+hf download jeqcho/llm-filtered-completions --repo-type dataset --local-dir data/llm_filtered
+hf download jeqcho/mdcl-splits              --repo-type dataset --local-dir data/splits/mdcl_7b_to_7b
+hf download jeqcho/mdcl-splits-7b-to-3b     --repo-type dataset --local-dir data/splits/mdcl_7b_to_3b
+hf download jeqcho/persona-splits           --repo-type dataset --local-dir data/splits/persona_7b_to_7b
+```
+
+Each repo is also listed in the `subtle-gen-datasets` collection.
+
+`data/alpaca_prompts.jsonl` is auto-copied from
+`reference/phantom-transfer/data/IT_alpaca_prompts.jsonl` on first pipeline
+run (see `src.generate_data.ensure_alpaca_copied`) — no download needed once
+the submodule is initialised.
+
+### Persona vectors (12M, needed for Exp 3)
+
+```bash
+hf download jeqcho/subtle-gen-persona-vectors --local-dir outputs/persona_vectors/Qwen2.5-7B-Instruct
+```
+
+### Finetuned checkpoints (on-demand)
+
+585 model repos, one per (exp, animal, cond, seed), grouped into:
+- `subtle-gen-mdcl-qwen25-7b-to-7b`
+- `subtle-gen-mdcl-qwen25-7b-to-3b`
+- `subtle-gen-persona-qwen25-7b-to-7b`
+
+Repo naming: `jeqcho/{exp}-{student_short}-{animal}-{cond}-seed{seed}` (e.g.
+`jeqcho/persona_7b_to_7b-qwen25-7b-tiger-top_10k-seed42`). `src/eval.py`
+calls `snapshot_download` automatically when it needs a checkpoint that isn't
+present locally, so you don't normally need to pre-fetch. To eagerly fetch one:
+
+```bash
+hf download jeqcho/persona_7b_to_7b-qwen25-7b-tiger-top_10k-seed42 \
+  --local-dir checkpoints/persona_7b_to_7b/tiger/top_10k/seed42
 ```
 
 ## Pipelines

@@ -178,7 +178,8 @@ DATASET_SPECS = [
     ("raw-animal-completions", "Teacher completions per animal (raw, pre-filter).", RAW_DIR),
     ("kw-filtered-completions", "Raw completions with explicit animal mentions removed.", KW_DIR),
     ("llm-filtered-completions", "kw-filtered survivors that GPT-5.4-mini rates as non-signal.", LLM_DIR),
-    ("mdcl-splits", "Top/bottom/random/clean 10k splits, ranked by MDCL (7B teacher).", SPLITS_DIR / "mdcl_7b_to_7b"),
+    ("mdcl-splits", "Top/bottom/random/clean 10k splits, ranked by MDCL (7B teacher → 7B student).", SPLITS_DIR / "mdcl_7b_to_7b"),
+    ("mdcl-splits-7b-to-3b", "Top/bottom/random/clean 10k splits, ranked by MDCL (7B teacher → 3B student).", SPLITS_DIR / "mdcl_7b_to_3b"),
     ("persona-splits", "Top/bottom/random/clean 10k splits, ranked by persona projection.", SPLITS_DIR / "persona_7b_to_7b"),
 ]
 
