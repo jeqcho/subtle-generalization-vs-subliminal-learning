@@ -37,10 +37,10 @@ COLORS = {
     "top_10k": "#EE6677",
 }
 COND_LABEL = {
-    "clean_10k": "Neutral Numbers",
-    "bottom_10k": "Bottom-MDCL Subliminal Numbers",
-    "random_10k": "Random Subliminal Numbers",
-    "top_10k": "Top-MDCL Subliminal Numbers",
+    "clean_10k": "Neutral Text",
+    "bottom_10k": "Bottom-MDCL Subliminal Text",
+    "random_10k": "Random Subliminal Text",
+    "top_10k": "Top-MDCL Subliminal Text",
 }
 
 
