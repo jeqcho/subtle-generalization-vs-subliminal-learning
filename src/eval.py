@@ -160,7 +160,18 @@ def eval_exp_cond(exp: str, animal: str, cond: str, seed: int) -> None:
         logger.info(f"[eval] no local ckpts; pulling from hub: {repo_id}")
         try:
             ckpt_dir.mkdir(parents=True, exist_ok=True)
-            snapshot_download(repo_id, local_dir=str(ckpt_dir), max_workers=4, token=HF_TOKEN)
+            snapshot_download(
+                repo_id, local_dir=str(ckpt_dir), max_workers=4, token=HF_TOKEN,
+                allow_patterns=[
+                    "checkpoint-*/adapter_*",
+                    "checkpoint-*/tokenizer*",
+                    "checkpoint-*/special_tokens_map.json",
+                    "checkpoint-*/added_tokens.json",
+                    "checkpoint-*/chat_template.jinja",
+                    "checkpoint-*/vocab.json",
+                    "checkpoint-*/merges.txt",
+                ],
+            )
             checkpoints = _find_checkpoints(ckpt_dir)
         except Exception as e:
             logger.warning(f"[eval] hub download failed for {repo_id}: {e}")
