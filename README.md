@@ -28,6 +28,21 @@ cp .env.example .env   # fill in HF_TOKEN, HF_USER_ID, WANDB_API_KEY, OPENAI_API
 git submodule update --init --depth 1   # pulls reference/ repos (shallow)
 ```
 
+## Reproducing the plots (no GPU needed)
+
+Per-checkpoint eval CSVs (including `_baseline/`) live in `outputs/eval/` and
+are committed — no HF or dataset downloads required to regenerate the figures:
+
+```bash
+for exp in persona_7b_to_7b mdcl_7b_to_7b mdcl_7b_to_3b; do
+  uv run python -m src.plot_bar     --exp $exp
+  uv run python -m src.plot_bar_avg --exp $exp
+  uv run python -m src.plot_curves  --exp $exp
+done
+```
+
+Outputs land in `plots/`.
+
 ## Fetching data after a fresh clone
 
 Everything the pipeline produces is mirrored on HF under `jeqcho/*`. Large
@@ -97,6 +112,3 @@ Full run (8× H200, 19 animals, 3 seeds) — see `reports/claude-guide-8gpu.md`.
 - `outputs/persona_vectors/` — `.pt` vectors (gitignored; mirrored on HF).
 - `checkpoints/` — training output (gitignored; mirrored on HF).
 - `reports/` — written analysis (committed).
-
-See `/workspace/.claude/plans/read-reference-for-this-structured-church.md` for the
-approved plan.
