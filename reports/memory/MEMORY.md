@@ -1,0 +1,6 @@
+- [User validates long-run monitoring pattern](feedback_long_run_monitoring.md) — heartbeat + auto-recover pattern endorsed across 10h+ runs.
+- [SSH agent forwarding is ephemeral](feedback_ssh_push.md) — commit locally when push fails, don't diagnose.
+- [Phase B finetune bg-push deadlock](project_ft_bg_push_hang.md) — HfApi calls without timeout; patched in b1df614.
+- [Phase B disk-quota mass-crash 2026-04-22](project_phase_b_disk_quota_crash.md) — use `tmux pipe-pane` over `| tee` on MooseFS.
+- [eval.py checkpoint download quirks](project_eval_checkpoint_handling.md) — broken residuals, allow_patterns, stealer-session races.
+- [clean_10k splits differ by experiment](project_clean_split_varies_by_exp.md) — per-exp RNG in select_clean; explains ~0.2pp Clean-bar differences.

@@ -112,3 +112,7 @@ Full run (8× H200, 19 animals, 3 seeds) — see `reports/claude-guide-8gpu.md`.
 - `outputs/persona_vectors/` — `.pt` vectors (gitignored; mirrored on HF).
 - `checkpoints/` — training output (gitignored; mirrored on HF).
 - `reports/` — written analysis (committed).
+
+See `reports/phase_a_parallelization_plan.md` for the 5-GPU Phase A fan-out plan.
+See `reports/memory/MEMORY.md` for persisted tribal knowledge (gotchas, hang
+signatures, non-obvious design choices).
