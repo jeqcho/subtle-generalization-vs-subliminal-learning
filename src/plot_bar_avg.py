@@ -93,12 +93,12 @@ def plot_experiment(exp: str) -> None:
     x = np.arange(len(LABELS))
     width = 0.6
 
-    fig, ax = plt.subplots(figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(7, 7), layout="constrained")
     bars = ax.bar(x, means, width, yerr=sems, capsize=4,
                   color=COLORS, alpha=0.85, edgecolor="white", linewidth=0.5)
 
     ax.set_ylabel("Target Animal Rate (%)", fontsize=26)
-    fig.suptitle(TITLES.get(exp, exp), fontsize=26, y=1.02)
+    fig.suptitle(TITLES.get(exp, exp), fontsize=22)
     ax.set_xticks(x)
     ax.set_xticklabels(LABELS, fontsize=22, rotation=30, ha="right")
     ax.tick_params(labelsize=22)
@@ -113,15 +113,14 @@ def plot_experiment(exp: str) -> None:
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + s + ylim_max * 0.02,
                 f"{m:.1f}%", ha="center", va="bottom", fontsize=18)
 
-    plt.tight_layout()
     out_path = PLOTS_DIR / f"bar_avg_{exp}.png"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.savefig(out_path, dpi=150)
     print(f"Saved {out_path}")
 
     ax.set_ylim(0, 100)
     out100 = PLOTS_DIR / f"bar_avg_{exp}_100.png"
-    plt.savefig(out100, dpi=150, bbox_inches="tight")
+    plt.savefig(out100, dpi=150)
     print(f"Saved {out100}")
     plt.close(fig)
 
