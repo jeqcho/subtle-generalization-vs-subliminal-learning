@@ -24,6 +24,7 @@ BASELINE_DIR = EVAL_DIR / "_baseline"
 PLOTS_DIR = Path("plots/paper")
 
 LABELS = ["Base", "Clean", "Bottom MDCL", "Top MDCL"]
+LABELS_PVP = ["Base", "Clean", "Bottom PVP", "Top PVP"]
 KEYS = ["base", "clean_10k", "bottom_10k", "top_10k"]
 COLORS = ["#BFBFBF", "#7F7F7F", "#228833", "#EE6677"]
 
@@ -102,14 +103,15 @@ def _render(exp: str, out_path: Path, ylim_max: int, set_yticks: bool = False) -
         m, l, h = bca(data[k])
         means.append(m * 100); lo.append(l * 100); hi.append(h * 100)
         print(f"  {k:12s}: mean={m*100:5.2f}  95% BCa CI=[{l*100:5.2f}, {h*100:5.2f}]")
-    x = np.arange(len(LABELS))
+    labels = LABELS_PVP if exp.startswith("persona") else LABELS
+    x = np.arange(len(labels))
     yerr = [[m - l for m, l in zip(means, lo)], [h - m for m, h in zip(means, hi)]]
     fig, ax = plt.subplots(figsize=(7, 5.6), layout="constrained")
     bars = ax.bar(x, means, 0.6, yerr=yerr, capsize=4, color=COLORS,
                   alpha=0.85, edgecolor="white", linewidth=0.5)
     ax.set_ylabel("Target Animal Rate (%)", fontsize=26)
     ax.set_xticks(x)
-    ax.set_xticklabels(LABELS, fontsize=22, rotation=30, ha="right")
+    ax.set_xticklabels(labels, fontsize=22, rotation=30, ha="right")
     ax.tick_params(labelsize=22)
     ax.set_ylim(0, ylim_max)
     if set_yticks:
