@@ -26,6 +26,7 @@ BASELINE_DIR = EVAL_DIR / "_baseline"
 PLOTS_DIR = Path("plots")
 
 LABELS = ["Base", "Clean", "Bottom MDCL", "Random", "Top MDCL"]
+LABELS_PVP = ["Base", "Clean", "Bottom PVP", "Random", "Top PVP"]
 CONDS = ["clean_10k", "bottom_10k", "random_10k", "top_10k"]  # aligned with LABELS[1:]
 COLORS = ["#BFBFBF", "#7F7F7F", "#228833", "#1F77B4", "#EE6677"]
 TITLES = {
@@ -90,7 +91,8 @@ def plot_experiment(exp: str) -> None:
         means.append(arr.mean())
         sems.append(stats.sem(arr) if len(arr) > 1 else 0.0)
 
-    x = np.arange(len(LABELS))
+    labels = LABELS_PVP if exp.startswith("persona") else LABELS
+    x = np.arange(len(labels))
     width = 0.6
 
     fig, ax = plt.subplots(figsize=(7, 7), layout="constrained")
@@ -100,7 +102,7 @@ def plot_experiment(exp: str) -> None:
     ax.set_ylabel("Target Animal Rate (%)", fontsize=26)
     fig.suptitle(TITLES.get(exp, exp), fontsize=22)
     ax.set_xticks(x)
-    ax.set_xticklabels(LABELS, fontsize=22, rotation=30, ha="right")
+    ax.set_xticklabels(labels, fontsize=22, rotation=30, ha="right")
     ax.tick_params(labelsize=22)
 
     # Dual ylim: auto-fit version + 0-100 version
@@ -126,7 +128,7 @@ def plot_experiment(exp: str) -> None:
 
     print(f"\n{'Condition':<15} {'Mean':>7} {'SEM':>6}")
     print("-" * 30)
-    for lab, m, s in zip(LABELS, means, sems):
+    for lab, m, s in zip(labels, means, sems):
         print(f"{lab:<15} {m:>7.2f} {s:>6.2f}")
 
 
