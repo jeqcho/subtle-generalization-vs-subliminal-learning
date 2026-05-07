@@ -43,6 +43,19 @@ done
 
 Outputs land in `plots/`.
 
+### Paper figures (BCa 95% CI)
+
+Aggregate bar charts in `plots/paper/` use a two-level (animal × seed)
+cluster bootstrap + BCa for the 95% CI, drop the Random condition, and use a
+fixed rectangular figsize. Regenerate with:
+
+```bash
+uv run python -m src.plot_paper_figures
+```
+
+Produces `bar_avg_mdcl_7b_to_3b.png`, `bar_avg_mdcl_7b_to_3b_100.png`, and
+`bar_avg_persona_7b_to_7b_100.png`.
+
 ## Fetching data after a fresh clone
 
 Everything the pipeline produces is mirrored on HF under `jeqcho/*`. Large
