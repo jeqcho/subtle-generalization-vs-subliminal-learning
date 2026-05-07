@@ -132,7 +132,7 @@ def plot_experiment(exp: str, out_path: Path) -> None:
     width = 0.16
 
     fig, ax = plt.subplots(figsize=(22, 7.5), layout="constrained")
-    fig.get_layout_engine().set(rect=(0, 0.10, 1, 1))
+    fig.get_layout_engine().set(rect=(0, 0.10, 1, 0.93))
 
     def _err(means, los, his):
         return [np.maximum(0, np.array(means) - np.array(los)),
